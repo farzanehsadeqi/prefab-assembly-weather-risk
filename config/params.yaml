@@ -1,0 +1,54 @@
+# All model inputs live here. Change a value, re-run the pipeline.
+
+site:
+  name: Bielefeld
+  latitude: 52.03
+  longitude: 8.53
+  timezone: Europe/Berlin
+
+weather_data:
+  start_date: "1995-01-01"        # ERA5 history from Open-Meteo archive
+  end_date: "2025-12-31"
+  variable: wind_gusts_10m_max     # alternative: wind_speed_10m_max (decided in step 4)
+  season_months: [10, 11]          # construction window used for calibration (decided in step 5)
+
+# Simulator parameters from the course assignment, kept for comparison
+course_simulator:
+  rho: 0.65
+  shape: 2.0
+  scale: 25.0
+
+crews:
+  crew_names: [A, B, C, D]
+  c_fixed: [4.0, 4.0, 3.5, 5.0]          # sunk reservation fee per allocated unit (EUR)
+  c_var: [7.0, 6.0, 5.5, 7.0]            # variable fee per installed unit (EUR)
+  minimum_contracts: [1000, 1000, 500, 1000]
+  maximum_capacities: [6000, 5000, 4000, 4000]
+  wind_thresholds: [43.3, 37.9, 31.7, 34.4]   # km/h
+
+project:
+  target_units: 10000
+  num_days: 20
+  penalty_per_unit: 40
+
+chance_constraint:
+  confidence_level: 0.95
+
+emergency_crew:
+  premium_rate: 16
+  maximum_emergency_capacity: 4000
+
+insurance:
+  insurance_premium: 4000
+  maximum_reimbursement: 20000
+
+scenarios:
+  n_sample_10k: 10000     # out-of-sample validation set
+  n_sample_200: 200       # optimisation set
+  seed_estimation: 1      # used only to estimate E[alpha] for Task 1
+  seed_optimization: 45   # same seed as in the notebook
+  seed_validation: 42
+
+risk:
+  cost_threshold: 110000
+  q: 5                    # VaR / CVaR level in percent

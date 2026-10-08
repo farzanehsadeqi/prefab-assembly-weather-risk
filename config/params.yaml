@@ -9,7 +9,7 @@ site:
 weather_data:
   start_date: "1995-01-01"        # ERA5 history from Open-Meteo archive
   end_date: "2025-12-31"
-  variable: wind_gusts_10m_max     # alternative: wind_speed_10m_max (decided in step 4)
+  variable: wind_speed_100m_max    # crane-boom height; 10 m sustained wind too calm, 10 m gusts infeasible
   season_months: [10, 11]          # construction window used for calibration (decided in step 5)
 
 # Simulator parameters from the course assignment, kept for comparison

@@ -21,6 +21,8 @@ import pandas as pd
 
 from prefabrisk.calibration import calibrate_season
 from prefabrisk.config import PROJECT_ROOT, load_config
+from prefabrisk.plots import plot_allocations, plot_alpha_distribution, plot_cost_distributions
+
 from prefabrisk.models import (solve_chance_constrained, solve_deterministic, solve_insurance,
                                solve_two_stage, value_of_stochastic_solution)
 from prefabrisk.risk import evaluate_costs, probability_of_shortfall, risk_summary
@@ -77,7 +79,7 @@ def run_case(config, case):
            "chance_constrained_status": cc["status"],
            "vss": {k: (v.tolist() if isinstance(v, np.ndarray) else v) for k, v in vss.items()},
            "insurance_expected_reimbursement": ins["expected_reimbursement"],
-           "decisions": {}, "costs": {}}
+            "decisions": {}, "costs": {}, "alpha_10k": alpha_10k, "alpha_hist": alpha_hist}
     for name, (x, insurance, objective) in decisions.items():
         if x is None:
             out["decisions"][name] = {"x": None, "status": "infeasible"}
@@ -117,6 +119,32 @@ def print_case(config, name, result):
     print(pd.DataFrame(rows).T.to_string())
 
 
+def make_figures(config, summary, plot_data):
+    figures = RESULTS_DIR / "figures"
+    figures.mkdir(parents=True, exist_ok=True)
+    names = config["crews"]["crew_names"]
+    seasons = list(config["weather_data"]["seasons"])
+
+    # 1. alpha of the most wind-sensitive crew (lowest threshold)
+    crew = int(np.argmin(config["crews"]["wind_thresholds"]))
+    alphas = {s: {"historical": plot_data[s]["alpha_hist"], "calibrated": plot_data[s]["alpha_10k"],
+                  "course": plot_data["course"]["alpha_10k"]} for s in seasons}
+    plot_alpha_distribution(alphas, crew, names[crew], config["project"]["num_days"],
+                            figures / "alpha_distribution.png")
+
+    # 2. two-stage allocation per case
+    allocations = {case: summary[case]["decisions"]["two_stage"]["x"] for case in summary}
+    plot_allocations(allocations, names, figures / "allocation_two_stage.png",
+                     "Two-stage optimal allocation (emergency crew as recourse)")
+
+    # 3. cost distribution of the final decision (with insurance option)
+    costs = {s: plot_data[s]["costs"]["insurance"] for s in seasons}
+    plot_cost_distributions(costs, config["risk"]["q"], config["risk"]["cost_threshold"],
+                            figures / "cost_distribution.png",
+                            "Total cost of the optimal decision with insurance option")
+    print(f"Saved figures to {figures}")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--refresh", action="store_true", help="download wind data again")
@@ -126,14 +154,16 @@ def main():
     wind_daily = load_wind_history(config, refresh=args.refresh)
     cases = build_cases(config, wind_daily)
 
-    summary = {}
+    summary, plot_data = {}, {}
     for name, case in cases.items():
         result = run_case(config, case)
         print_case(config, name, result)
-        result.pop("costs")
+        plot_data[name] = {k: result.pop(k) for k in ["costs", "alpha_10k", "alpha_hist"]}
         if "calibration" in case:
             result["calibration"] = case["calibration"]
         summary[name] = result
+
+    make_figures(config, summary, plot_data)
 
     RESULTS_DIR.mkdir(exist_ok=True)
     with open(RESULTS_DIR / "summary.json", "w", encoding="utf-8") as f:
